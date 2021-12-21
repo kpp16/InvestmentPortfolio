@@ -1,0 +1,39 @@
+body {
+  padding: 1%
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+.green {
+  color: green;
+  font-weight: 520;
+}
+
+.red {
+  color: red;
+  font-weight: 520;
+}
+
+.extraFontWeight {
+  font-weight: 500;
+}
+
+.investmentValue {
+  font-weight: 520;
+}
+
+.addInvestment {
+  text-align: justify;
+}
+
+.totalInvestment {
+  font-weight: 520;
+  font-size: large;
+}
+
+.stockHeading {
+  padding-left: 20;
+}
