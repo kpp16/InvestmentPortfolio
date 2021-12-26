@@ -7,6 +7,8 @@ import com.crazzyghost.alphavantage.timeseries.response.StockUnit;
 import com.crazzyghost.alphavantage.timeseries.response.TimeSeriesResponse;
 import com.kpparekh.InvestmentPortfolio.Repostiories.InvestmentRepo;
 import com.kpparekh.InvestmentPortfolio.models.*;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -15,6 +17,10 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.time.LocalDate;
 import java.util.*;
 
@@ -23,12 +29,17 @@ import com.kpparekh.InvestmentPortfolio.service.IInvestmentService;
 @RestController
 public class InvestmentController {
 
+    @GetMapping("/")
+    public String index() {
+        return "Hello, World";
+    }
+
     @Autowired
     InvestmentRepo investmentRepo;
 
     @GetMapping("/investments")
     @ResponseBody
-    public ResponseEntity<List<UserInvestment>> allInvestments() {
+    public ResponseEntity<List<UserInvestment>> allInvestments() throws IOException, InterruptedException {
         List<Investment> investments = (List<Investment>) investmentRepo.findAll();
         List<UserInvestment> userInvestments = new ArrayList<>();
 
@@ -50,18 +61,9 @@ public class InvestmentController {
         return new ResponseEntity<UserInvestment>(userInvestment, HttpStatus.OK);
     }
 
-    @Autowired
-    IInvestmentService investmentService;
-    @GetMapping("/getQuotes")
-    public List<String> getAllQuotes(){
-        var quotes = (List<String>) investmentService.getQuotes();
-
-        return quotes;
-    }
-
     @PostMapping(value = "/addinvestment", consumes = {"application/json"}, produces = {"application/json"})
     @ResponseBody
-    public ResponseEntity<String> addInvestment(@RequestBody AddInvestment investmentData, UriComponentsBuilder builder) throws IOException {
+    public ResponseEntity<String> addInvestment(@RequestBody AddInvestment investmentData, UriComponentsBuilder builder) throws IOException, InterruptedException {
 
         String quote = investmentData.quote.toUpperCase(Locale.ROOT);
         double quantity = investmentData.quantity;
@@ -74,29 +76,26 @@ public class InvestmentController {
 
 
         if (buyDate != null) {
-            Config cfg = Config.builder()
-                    .key("9VX7R0WNMRAF0HIG")
-                    .timeOut(10)
-                    .build();
 
             double firstPrice = 0;
 
-            AlphaVantage.api().init(cfg);
-            TimeSeriesResponse dataResponse = AlphaVantage.api()
-                    .timeSeries()
-                    .daily()
-                    .adjusted()
-                    .forSymbol(quote)
-                    .outputSize(OutputSize.FULL)
-                    .fetchSync();
+            String url = "https://api.twelvedata.com/time_series?apikey=cf86792a7e7c40e6875feaa45820aafa&interval=1day&start_date=" + buyDate.toString() + "+21:37:00&symbol=" + quote;
 
-            List<StockUnit> stockUnits = dataResponse.getStockUnits();
-            price = stockUnits.get(0).getAdjustedClose();
-            for (StockUnit stockUnit: stockUnits) {
-                if (stockUnit.getDate().equals(buyDate.toString())) {
-                    firstPrice = stockUnit.getAdjustedClose();
-                }
-            }
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .method("GET", HttpRequest.BodyPublishers.noBody())
+                    .build();
+
+            HttpResponse<String> response = HttpClient.newHttpClient()
+                    .send(request, HttpResponse.BodyHandlers.ofString());
+
+            final JSONObject obj = new JSONObject(response.body());
+            final JSONArray stockValues = obj.getJSONArray("values");
+            final JSONObject stockNow = (JSONObject) stockValues.get(0);
+            price = stockNow.getDouble("close");
+
+            final JSONObject stockFirst = (JSONObject) stockValues.get(stockValues.length() - 1);
+            firstPrice = stockFirst.getDouble("close");
 
             if (firstPrice == -1) {
                 change = 0;
@@ -118,38 +117,32 @@ public class InvestmentController {
 
     @PostMapping(value = "/updateinvestment", consumes = {"application/json"}, produces = {"application/json"})
     @ResponseBody
-    public ResponseEntity<Void> updateInvestment(@RequestBody AddInvestment investmentData, UriComponentsBuilder builder) {
+    public ResponseEntity<Void> updateInvestment(@RequestBody AddInvestment investmentData, UriComponentsBuilder builder) throws IOException, InterruptedException {
         Investment currentInvestment = investmentRepo.findByid(investmentData.id);
         currentInvestment.setQuantity(investmentData.quantity);
         currentInvestment.setBuydate(investmentData.buyDate);
         double firstPrice = 0;
-
-        Config cfg = Config.builder()
-                .key("9VX7R0WNMRAF0HIG")
-                .timeOut(10)
-                .build();
-
-        AlphaVantage.api().init(cfg);
         LocalDate buyDate = investmentData.buyDate;
 
         String quote = currentInvestment.getQuote();
         double change = 0;
         double price = currentInvestment.getPrice();
 
-        TimeSeriesResponse dataResponse = AlphaVantage.api()
-                .timeSeries()
-                .daily()
-                .adjusted()
-                .forSymbol(quote)
-                .outputSize(OutputSize.FULL)
-                .fetchSync();
+        String url = "https://api.twelvedata.com/time_series?apikey=cf86792a7e7c40e6875feaa45820aafa&interval=1day&start_date=" + buyDate.toString() + "+21:37:00&symbol=" + quote;
 
-        List<StockUnit> stockUnits = dataResponse.getStockUnits();
-        for (StockUnit stockUnit: stockUnits) {
-            if (stockUnit.getDate().equals(buyDate.toString())) {
-                firstPrice = stockUnit.getAdjustedClose();
-            }
-        }
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .method("GET", HttpRequest.BodyPublishers.noBody())
+                .build();
+
+        HttpResponse<String> response = HttpClient.newHttpClient()
+                .send(request, HttpResponse.BodyHandlers.ofString());
+
+
+        final JSONObject obj = new JSONObject(response.body());
+        final JSONArray stockValues = obj.getJSONArray("values");
+        final JSONObject stockFirst = (JSONObject) stockValues.get(stockValues.length() - 1);
+        firstPrice = stockFirst.getDouble("close");
 
         if (firstPrice == -1) {
             change = 0;
@@ -180,56 +173,43 @@ public class InvestmentController {
     }
 
     @GetMapping("/allgraph")
-    public ResponseEntity<List<Graph>> allGraphData() {
-        Config cfg = Config.builder()
-                .key("9VX7R0WNMRAF0HIG")
-                .timeOut(10)
-                .build();
-        AlphaVantage.api().init(cfg);
+    public ResponseEntity<List<Graph>> allGraphData() throws IOException, InterruptedException {
         List<String> quotes = new ArrayList<>();
         quotes = investmentRepo.findDistinctQuote();
         List<Graph> data = new ArrayList<Graph>();
 
-        List<String> dates = new ArrayList<String>();
+        List<String> dates = new ArrayList<String>(Collections.nCopies(100, ""));
         List<Double> price = new ArrayList<Double>(Collections.nCopies(100, 0.0));
 
-        TimeSeriesResponse dataResponse = AlphaVantage.api()
-                .timeSeries()
-                .daily()
-                .adjusted()
-                .forSymbol(quotes.get(0))
-                .outputSize(OutputSize.COMPACT)
-                .fetchSync();
-        List<StockUnit> stockUnits = dataResponse.getStockUnits();
-        for (StockUnit dataresp: stockUnits) {
-            dates.add(dataresp.getDate());
-        }
+        int size = 88;
 
         for (String quote: quotes) {
-            TimeSeriesResponse quoteResp = AlphaVantage.api()
-                    .timeSeries()
-                    .daily()
-                    .adjusted()
-                    .forSymbol(quote)
-                    .outputSize(OutputSize.COMPACT)
-                    .fetchSync();
-                List<StockUnit> quoteUnits = quoteResp.getStockUnits();
 
-            double quantity = investmentRepo.findSumQuantity(quote);
+            String url = "https://api.twelvedata.com/time_series?apikey=cf86792a7e7c40e6875feaa45820aafa&interval=1day&format=JSON&previous_close=true&symbol=" + quote + "&outputsize=100";
 
-            for (int i = 0; i < quoteUnits.size(); i++) {
-                double closeVal = (quoteUnits.get(i).getAdjustedClose() * quantity);
-                price.set(i, (double) Math.round((price.get(i) + closeVal) * 100.0 / 100.0));
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .method("GET", HttpRequest.BodyPublishers.noBody())
+                    .build();
+
+            HttpResponse<String> response = HttpClient.newHttpClient()
+                    .send(request, HttpResponse.BodyHandlers.ofString());
+
+            final JSONObject obj = new JSONObject(response.body());
+            final JSONArray stockValues = obj.getJSONArray("values");
+            size = stockValues.length();
+            for (int i = stockValues.length() - 1; i >= 0; i--) {
+                final JSONObject stockOBJ = stockValues.getJSONObject(i);
+                dates.set(stockValues.length() - 1 - i, stockOBJ.getString("datetime"));
+                price.set(stockValues.length() - 1 - i, price.get(stockValues.length() - 1 - i) + stockOBJ.getDouble("close"));
             }
-
         }
 
-        for (int i = dates.size() - 1; i >= 0; i--) {
-            data.add(new Graph(dates.get(i), price.get(i), price.get(i)));
+        for (int i = 0; i < size; i++) {
+            data.add(new Graph(dates.get(i), Math.round(price.get(i) * 100.0) / 100.0, Math.round(price.get(i) * 100.0) / 100.0));
         }
 
         return new ResponseEntity<List<Graph>>(data, HttpStatus.OK);
 
     }
-
 }

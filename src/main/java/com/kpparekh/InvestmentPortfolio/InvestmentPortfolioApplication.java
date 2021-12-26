@@ -18,13 +18,6 @@ public class InvestmentPortfolioApplication {
 		return new WebMvcConfigurer() {
 			@Override
 			public void addCorsMappings(CorsRegistry registry) {
-//				registry.addMapping("/investments").allowedOrigins("http://localhost:3000");
-//				registry.addMapping("/investment/{quote}").allowedOrigins("http://localhost:3000");
-//				registry.addMapping("/price/{quote}").allowedOrigins("http://localhost:3000");
-//				registry.addMapping("/addinvestment").allowedOrigins("http://localhost:3000");
-//				registry.addMapping("/updateinvestment").allowedOrigins("http://localhost:3000");
-//				registry.addMapping("/delete/{quote}").allowedOrigins("http://localhost:3000");
-//				registry.addMapping("/delete/").allowedOrigins("http://localhost:3000");
 				registry.addMapping("/**").allowedMethods("PUT", "GET", "DELETE", "OPTIONS", "PATCH", "POST");
 			}
 		};
