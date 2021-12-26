@@ -11,7 +11,7 @@ For example:
 server.port=8080
 spring.jpa.database=POSTGRESQL
 spring.datasource.platform=postgres
-spring.datasource.url=jdbc:postgresql://host:5432/database
+spring.datasource.url=jdbc:postgresql://<hostname>:5432/<database>
 spring.datasource.username=<username>
 spring.datasource.password=<password>
 spring.jpa.show-sql=true
