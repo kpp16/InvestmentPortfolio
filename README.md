@@ -32,7 +32,7 @@ zipStorePath=wrapper/dists
 
 After that you can build the jar file using
 ```
-gradle buildJar
+gradle build
 ```
 Or, directly run the application using
 ```
