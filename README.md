@@ -1,4 +1,4 @@
-# InvestmentPortfolio
+# Investment Portfolio
 An Investment Portfolio web-app to keep track of all your investments and watch stocks.
 
 To run this app, you need to do the following steps.
