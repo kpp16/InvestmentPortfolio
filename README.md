@@ -53,3 +53,5 @@ npm start
 ```
 
 Visit ```http://localhost:3000``` to view the webapp.
+
+![Sample Investment Portfolio Screenshot](https://github.com/kpp16/InvestmentPortfolio/blob/main/Screenshot%202022-03-24%20at%2000-46-10%20React%20App.png)
